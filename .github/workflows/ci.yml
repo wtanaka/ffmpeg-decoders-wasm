@@ -1,0 +1,59 @@
+name: CI
+
+# Builds the module and runs scripts/check.sh. Publishes nothing; release.yml
+# publishes.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the Emscripten version
+        id: emscripten
+        run: |
+          echo "version=$(cat scripts/EMSCRIPTEN_VERSION)" >> "$GITHUB_OUTPUT"
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ steps.emscripten.outputs.version }}
+          actions-cache-folder: emsdk-cache
+      # The cached FFmpeg source and objects depend only on the pin, the
+      # configure flags and the Emscripten version, so those form the key.
+      # There is no fallback key: objects built by another Emscripten MUST NOT
+      # be linked into the module.
+      - uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/ffmpeg-decoders-wasm
+          key: >-
+            ffmpeg-objects-${{ runner.os }}-${{
+            hashFiles('scripts/flags.sh',
+            'scripts/EMSCRIPTEN_VERSION') }}
+      # bindgen loads libclang at run time.
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libclang-dev
+      - run: sh scripts/build.sh
+        env:
+          FFMPEG_DECODERS_BUILD_DIR: ${{ runner.temp }}/ffmpeg-decoders-wasm
+      - run: rustup target add wasm32-unknown-emscripten
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: sh scripts/check.sh
+        env:
+          FFMPEG_DECODERS_BUILD_DIR: ${{ runner.temp }}/ffmpeg-decoders-wasm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/

@@ -1,0 +1,39 @@
+name: Release
+
+# Pushing a tag v<version> runs this workflow. It publishes the files that
+# ci.yml built for the tagged commit and does not build them again.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  actions: read # to download the CI build
+  contents: write # to create a release
+  id-token: write # for the build-provenance attestation
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download the build that CI made for this commit
+        run: |
+          run_id=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" \
+            --status success --json databaseId -q '.[0].databaseId')
+          test -n "$run_id" || {
+            echo "no successful CI run for $GITHUB_SHA" >&2
+            exit 1
+          }
+          gh run download "$run_id" --name "dist-$GITHUB_SHA" --dir dist
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/hevc-decoder.wasm
+            dist/ffmpeg_decoders_bindings.rs
+      - name: Create the release
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --generate-notes

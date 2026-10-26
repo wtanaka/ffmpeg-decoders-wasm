@@ -1,0 +1,23 @@
+# Building a replacement HEVC decoder module
+
+`hevc-decoder.wasm` is FFmpeg's libavcodec HEVC decoder and libavutil (LGPL 2.1
+or later, `FFmpeg-LGPL-2.1.txt`), linked as one side module. The program that
+loads it provides the Emscripten and musl runtime (`Emscripten-LICENSE.txt`,
+`musl-COPYRIGHT.txt`). To replace the FFmpeg part with a build of your own:
+
+1. Take the FFmpeg @FFMPEG_VERSION@ source (`@FFMPEG_URL@`, SHA-256
+   `@FFMPEG_SHA256@`), or your own FFmpeg source.
+2. Install Emscripten @EMSCRIPTEN_VERSION@.
+3. Configure and build the two libraries:
+
+   ```sh
+   emconfigure ./configure @CONFIGURE_FLAGS@
+   emmake make libavutil/libavutil.a libavcodec/libavcodec.a
+   ```
+
+4. Link the two libraries into one side module with `emcc`, as
+   `scripts/build.sh` does (`-sSIDE_MODULE=2`, exporting the functions listed in
+   `scripts/flags.sh`). A program links the module by naming it on its `emcc`
+   command line with `-sMAIN_MODULE=2` (see `scripts/check.sh`).
+
+`scripts/build.sh` in the repository performs all of these steps.
