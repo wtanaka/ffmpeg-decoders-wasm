@@ -1,0 +1,14 @@
+[package]
+name = "gen-bindings"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Generates dist/ffmpeg_decoders_bindings.rs. Run by scripts/build.sh; not
+# published. Requires libclang at run time. Not a member of a workspace:
+# scripts/build.sh runs it on the host.
+[workspace]
+
+[dependencies]
+bindgen = "0.73"

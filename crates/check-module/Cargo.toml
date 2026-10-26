@@ -1,0 +1,18 @@
+[package]
+name = "check-module"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# A program that loads hevc-decoder.wasm and calls FFmpeg through the generated
+# bindings. scripts/check.sh builds it for wasm32-unknown-emscripten, links it
+# with the module and runs it under Node. Not a member of a workspace.
+[workspace]
+
+[lib]
+crate-type = ["staticlib"]
+
+[profile.release]
+opt-level = "z"
+panic = "abort"
